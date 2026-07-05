@@ -86,6 +86,25 @@ const blankCharacter = {
   investigation: 0
 };
 const maxCharacters = 10;
+type CharacterFormState = typeof blankCharacter & Partial<Pick<
+  Character,
+  "id" | "xp" | "is_dead" | "user_id" | "owner_username" | "owner_email"
+>>;
+
+function playerCharacterUpdatePayload(form: CharacterFormState) {
+  const {
+    game_created_at: _gameCreatedAt,
+    level: _level,
+    xp: _xp,
+    is_dead: _isDead,
+    id: _id,
+    user_id: _userId,
+    owner_username: _ownerUsername,
+    owner_email: _ownerEmail,
+    ...payload
+  } = form;
+  return payload;
+}
 
 function apiErrorDetail(error: unknown, fallback: string) {
   const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
@@ -812,14 +831,23 @@ function CharacterFormPage({ edit = false }: { edit?: boolean }) {
   const navigate = useNavigate();
   const { id: idParam } = useParams();
   const id = Number(idParam);
-  const [form, setForm] = useState(blankCharacter);
+  const [form, setForm] = useState<CharacterFormState>(blankCharacter);
   const [error, setError] = useState("");
+  const visibleNumberFields = edit
+    ? numberFields.filter(({ field }) => field !== "level")
+    : numberFields;
 
   useEffect(() => {
     if (!edit) return;
     api.get<Character[]>("/characters").then((response) => {
       const character = response.data.find((item) => item.id === id);
-      if (character) setForm({ ...blankCharacter, ...character });
+      if (character) {
+        setForm({
+          ...blankCharacter,
+          ...character,
+          game_created_at: character.game_created_at ?? blankCharacter.game_created_at
+        });
+      }
     });
   }, [edit, id]);
 
@@ -828,7 +856,7 @@ function CharacterFormPage({ edit = false }: { edit?: boolean }) {
     setError("");
     try {
       if (edit) {
-        await api.patch(`/characters/${id}`, form);
+        await api.patch(`/characters/${id}`, playerCharacterUpdatePayload(form));
         navigate(`/characters/${id}`);
       } else {
         await api.post("/characters", form);
@@ -867,7 +895,7 @@ function CharacterFormPage({ edit = false }: { edit?: boolean }) {
           <input className="field" value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} />
         </label>
       ))}
-      {numberFields.map(({ field, label }) => (
+      {visibleNumberFields.map(({ field, label }) => (
         <label className="field-label" key={field}>
           <span>{label}</span>
           <input className="field" type="number" value={form[field]} onChange={(event) => setForm({ ...form, [field]: Number(event.target.value) })} />

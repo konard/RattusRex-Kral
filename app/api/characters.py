@@ -161,18 +161,7 @@ def update_character(
             status_code=404,
             detail="Character not found"
         )
-    if character_data.xp is not None:
-
-        character.xp = max(0, character.xp + character_data.xp)
-
-        while character.xp >= character.level + 1:
-            character.xp -= character.level + 1
-            character.level += 1
-
-    update_data = character_data.model_dump(
-        exclude_unset=True,
-        exclude={"xp"}
-    )
+    update_data = character_data.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():
         setattr(character, key, value)

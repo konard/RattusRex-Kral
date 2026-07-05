@@ -8,7 +8,7 @@ from app.api.users import get_current_user, get_db
 from app.models.character import CalendarAuditLog, Character
 from app.models.inventory import InventoryItem, ShopTransactionLog, TransferLog
 from app.models.user import User
-from app.schemas.character import CalendarAuditLogResponse, CharacterUpdate
+from app.schemas.character import AdminCharacterUpdate, CalendarAuditLogResponse
 from app.schemas.inventory import (
     AddItemRequest,
     CurrencyUpdateRequest,
@@ -122,7 +122,7 @@ def get_admin_character(
 @router.patch("/characters/{character_id}")
 def update_admin_character(
     character_id: int,
-    character_data: CharacterUpdate,
+    character_data: AdminCharacterUpdate,
     db: Session = Depends(get_db),
     _: User = Depends(require_admin)
 ):

@@ -12,7 +12,7 @@ from app.api.users import get_current_user
 from app.schemas.character import (
     AbilityRollResponse,
     CharacterCreate,
-    CharacterUpdate,
+    PlayerCharacterUpdate,
     SavingThrowRollResponse,
 )
 from app.api.users import get_db
@@ -147,7 +147,7 @@ def get_transfer_targets(
 @router.patch("/characters/{character_id}")
 def update_character(
     character_id: int,
-    character_data: CharacterUpdate,
+    character_data: PlayerCharacterUpdate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -161,6 +161,7 @@ def update_character(
             status_code=404,
             detail="Character not found"
         )
+
     update_data = character_data.model_dump(exclude_unset=True)
 
     for key, value in update_data.items():

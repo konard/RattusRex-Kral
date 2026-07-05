@@ -168,6 +168,11 @@ def normalize_catalog_text(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+KNOWN_UNAVAILABLE_MAGIC_ITEM_NAMES = {
+    normalize_catalog_text("Vorpal Sword"),
+}
+
+
 def raw_magic_item_rarity(record: dict) -> str:
     inherits = record.get("inherits") or {}
     rarity = inherits.get("rarity") or record.get("rarity") or ""
@@ -529,9 +534,14 @@ def resolve_search_item(
                 detail="Item name and rarity are required"
             )
 
-        catalog_item = all_magic_items_by_name().get(
-            normalize_catalog_text(search_data.item_name)
-        )
+        normalized_item_name = normalize_catalog_text(search_data.item_name)
+        if normalized_item_name in KNOWN_UNAVAILABLE_MAGIC_ITEM_NAMES:
+            raise HTTPException(
+                status_code=400,
+                detail="Magic item is not available in the shop"
+            )
+
+        catalog_item = all_magic_items_by_name().get(normalized_item_name)
         if catalog_item:
             item = require_available_magic_item(catalog_item)
             return selected_magic_item_payload(item, mode)

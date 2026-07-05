@@ -7,20 +7,31 @@ import { loadEnv } from "./load-env.mjs";
 const projectRoot = new URL("..", import.meta.url);
 const projectRootPath = fileURLToPath(projectRoot);
 
-// Load variables from a project-level `.env` file so that `npm run dev`
-// picks up DATABASE_URL without requiring it to be exported manually.
-const loadedEnv = loadEnv(projectRootPath);
-for (const key of Object.keys(loadedEnv)) {
-  console.log(`[dev] Loaded ${key} from .env`);
-}
-
-// Default development database. Keep this in sync with the fallback in
-// app/db/database.py so the backend and the dev launcher agree.
-const DEFAULT_DATABASE_URL = "postgresql://postgres:GalU5TA1@localhost:5432/EpohaTruda";
-
-const apiTarget = process.env.VITE_API_TARGET ?? "http://127.0.0.1:8000";
 const children = new Set();
 let shuttingDown = false;
+
+export function applyProjectEnv(env = process.env) {
+  // Load variables from a project-level `.env` file so that `npm run dev`
+  // picks up DATABASE_URL without requiring it to be exported manually.
+  const loadedEnv = loadEnv(projectRootPath, env);
+  for (const key of Object.keys(loadedEnv)) {
+    console.log(`[dev] Loaded ${key} from .env`);
+  }
+  return loadedEnv;
+}
+
+export function resolveApiTarget(env = process.env) {
+  return env.VITE_API_TARGET ?? "http://127.0.0.1:8000";
+}
+
+export function resolveDatabaseUrl(env = process.env) {
+  if (!env.DATABASE_URL) {
+    throw new Error(
+      "DATABASE_URL is not set. Create a .env file from .env.example or export DATABASE_URL."
+    );
+  }
+  return env.DATABASE_URL;
+}
 
 function prefixOutput(label, stream) {
   let buffer = "";
@@ -100,7 +111,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function canReachBackend() {
+function canReachBackend(apiTarget) {
   return new Promise((resolve) => {
     const target = new URL("/", apiTarget);
     const request = http.request(
@@ -126,9 +137,9 @@ function canReachBackend() {
   });
 }
 
-async function waitForBackend(child) {
+async function waitForBackend(child, apiTarget) {
   for (let attempt = 0; attempt < 120; attempt += 1) {
-    if (await canReachBackend()) {
+    if (await canReachBackend(apiTarget)) {
       return;
     }
 
@@ -152,10 +163,7 @@ async function startBackend() {
       ? [localPython, "py", "python"]
       : [localPython, "python3", "python"];
   const args = ["-m", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"];
-  const databaseUrl = process.env.DATABASE_URL ?? DEFAULT_DATABASE_URL;
-  if (!process.env.DATABASE_URL) {
-    console.log("[dev] DATABASE_URL is not set; using the default development database.");
-  }
+  const databaseUrl = resolveDatabaseUrl();
   const env = {
     DATABASE_URL: databaseUrl
   };
@@ -173,15 +181,18 @@ async function startBackend() {
 }
 
 async function main() {
+  applyProjectEnv();
+
   process.on("SIGINT", () => shutdown(0));
   process.on("SIGTERM", () => shutdown(0));
 
-  if (await canReachBackend()) {
+  const apiTarget = resolveApiTarget();
+  if (await canReachBackend(apiTarget)) {
     console.log(`[dev] Using existing FastAPI server at ${apiTarget}`);
   } else {
     console.log(`[dev] Starting FastAPI at ${apiTarget}`);
     const backend = await startBackend();
-    await waitForBackend(backend);
+    await waitForBackend(backend, apiTarget);
   }
 
   console.log("[dev] Starting Vite");
@@ -190,7 +201,9 @@ async function main() {
   });
 }
 
-main().catch((error) => {
-  console.error(`[dev] ${error.message}`);
-  shutdown(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(`[dev] ${error.message}`);
+    shutdown(1);
+  });
+}

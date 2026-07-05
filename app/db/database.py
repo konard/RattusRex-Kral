@@ -1,19 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from sqlalchemy.pool import StaticPool
-import os
 
-from app.core.env import load_env
+from app.db.config import get_database_url
 
 
-# Populate environment variables from a project-level `.env` file before
-# reading DATABASE_URL. Existing variables (set by the shell, by
-# scripts/dev.mjs, or by the test suite) always take precedence.
-load_env()
-
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:GalU5TA1@localhost:5432/EpohaTruda")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is not set. PostgreSQL is required.")
+DATABASE_URL = get_database_url()
 
 engine_kwargs: dict = {}
 if DATABASE_URL.startswith("sqlite"):

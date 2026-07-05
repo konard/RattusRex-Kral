@@ -93,7 +93,7 @@ The seeded `admin` account is an **owner**. New accounts are created as **player
    npm run dev
    ```
 
-`npm run dev` starts FastAPI on `http://localhost:8000`, waits for it to be reachable, then starts Vite. It loads variables from a project-level `.env` file automatically, so defining `DATABASE_URL` there is enough. If `DATABASE_URL` is not set in the environment or in `.env`, it falls back to the default development database `postgresql://postgres:GalU5TA1@localhost:5432/EpohaTruda` (which must be running locally).
+`npm run dev` starts FastAPI on `http://localhost:8000`, waits for it to be reachable, then starts Vite. It loads variables from a project-level `.env` file automatically, so defining `DATABASE_URL` there is enough. If `DATABASE_URL` is not set in the environment or in `.env`, FastAPI startup fails with a configuration error instead of using an implicit database credential.
 
 The Vite dev server proxies `/api` requests to `http://127.0.0.1:8000`. To use a different backend origin, set `VITE_API_TARGET`.
 

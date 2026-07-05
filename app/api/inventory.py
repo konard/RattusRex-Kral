@@ -147,6 +147,22 @@ def validate_rarity(rarity: str):
             detail="Unknown rarity"
         )
 
+def require_inventory_grant_admin(current_user: User):
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin permissions required"
+        )
+
+def get_inventory_for_admin_grant(character_id: int, db: Session) -> Inventory:
+    character = db.query(Character).filter(Character.id == character_id).first()
+    if not character:
+        raise HTTPException(
+            status_code=404,
+            detail="Character not found"
+        )
+    return get_or_create_inventory_for_character(character, db)
+
 
 def normalize_catalog_text(value: str) -> str:
     return " ".join(value.casefold().split())
@@ -688,8 +704,9 @@ def add_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    require_inventory_grant_admin(current_user)
     validate_rarity(item_data.rarity)
-    inventory = get_character_inventory(character_id, current_user, db)
+    inventory = get_inventory_for_admin_grant(character_id, db)
 
     item = InventoryItem(
         name=item_data.name,
@@ -753,13 +770,14 @@ def add_gold(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    require_inventory_grant_admin(current_user)
     if gold_data.amount <= 0:
         raise HTTPException(
             status_code=400,
             detail="Amount must be positive"
         )
 
-    inventory = get_character_inventory(character_id, current_user, db)
+    inventory = get_inventory_for_admin_grant(character_id, db)
 
     inventory.gold += gold_data.amount
     db.commit()
@@ -802,8 +820,9 @@ def add_inventory_currency(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    require_inventory_grant_admin(current_user)
     require_non_negative_currency(currency_data)
-    inventory = get_character_inventory(character_id, current_user, db)
+    inventory = get_inventory_for_admin_grant(character_id, db)
     add_currency(
         inventory,
         currency_data.gold,

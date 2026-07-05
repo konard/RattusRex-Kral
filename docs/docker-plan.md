@@ -42,8 +42,8 @@
 
 **Обязательные переменные окружения** (без них backend не стартует):
 
-- `DATABASE_URL` — строка подключения к PostgreSQL (есть дефолт на `localhost`,
-  но для контейнера его нужно переопределить на хост `db`);
+- `DATABASE_URL` — строка подключения к PostgreSQL; для контейнера она должна
+  указывать на хост `db`;
 - `SECRET_KEY` — `app/core/security.py` бросает `RuntimeError`, если ключ пуст;
 - `ADMIN_PASSWORD` — `app/main.py` бросает `RuntimeError`, если пароль пуст;
 - `ALLOWED_ORIGINS` — список CORS‑origin через запятую (может быть пустым, но
@@ -103,9 +103,8 @@ origin** (фронтенд‑nginx проксирует `/api` на backend), б
 
 - Драйверы в `requirements.txt`: `psycopg` (3.x) и `psycopg2-binary`/`psycopg-binary`.
   SQLAlchemy для `postgresql://` по умолчанию использует `psycopg2`.
-- Дефолтная строка подключения для локальной разработки:
-  `postgresql://postgres:GalU5TA1@localhost:5432/EpohaTruda` (дублируется в
-  `scripts/dev.mjs` и `app/db/database.py`).
+- Для локальной разработки строка подключения задаётся явно через
+  `DATABASE_URL` в `.env` или в окружении. Неявного дефолта в коде нет.
 - **Docker Volume нужен** для каталога данных PostgreSQL
   (`/var/lib/postgresql/data`), иначе данные теряются при пересоздании
   контейнера. В `docker-compose.yml` для этого заведён именованный том `pgdata`.
@@ -124,8 +123,8 @@ origin** (фронтенд‑nginx проксирует `/api` на backend), б
 
 | # | Проблема | Критичность | Решение |
 | --- | --- | --- | --- |
-| 1 | `DATABASE_URL` по умолчанию указывает на `localhost`, внутри контейнера это сам контейнер | Блокирует | Переопределить на хост `db` через `environment` в compose (сделано) |
-| 2 | Дефолтный пароль PostgreSQL (`GalU5TA1`) и `CHANGE_ME` зашиты в код/примеры | Высокая (безопасность) | Брать пароль из `.env`/секретов, не хардкодить (см. §6) |
+| 1 | В контейнере `DATABASE_URL` должен указывать на сервис `db`, а не на `localhost` | Блокирует | Передавать строку подключения через `environment` в compose (сделано) |
+| 2 | Пароли PostgreSQL и другие секреты должны задаваться вне кода | Высокая (безопасность) | Брать пароль из `.env`/секретов, не хардкодить (см. §6) |
 | 3 | Нет Dockerfile, docker-compose.yml, .dockerignore | Блокирует | Добавлены в рамках задачи |
 | 4 | `requirements.txt` сохранён в кодировке **UTF‑16 LE с BOM** | Средняя | Современный pip читает (auto‑decode по BOM), но многие инструменты/линтеры ломаются. Рекомендуется пересохранить в UTF‑8 (см. §5) |
 | 5 | `requirements.txt` содержит тяжёлые dev‑зависимости (ipython, jupyter, nbconvert, matplotlib‑inline, pipreqs, sentry‑sdk…) | Средняя | Раздуают образ и время сборки. Желательно разделить runtime/dev зависимости (см. §5) |
@@ -247,7 +246,7 @@ origin** (фронтенд‑nginx проксирует `/api` на backend), б
 
 | Риск | Описание | Митигизация |
 | --- | --- | --- |
-| Хардкод дефолтного пароля БД | `GalU5TA1` в `scripts/dev.mjs` и `app/db/database.py` | В Docker строка подключения строится из `.env`; не использовать дефолт в продакшене. Желательно убрать дефолт из кода |
+| Отсутствует `DATABASE_URL` | Backend и dev launcher не стартуют без явной строки подключения | Создать `.env` из `.env.example` и задать пароль БД там; в Docker строка подключения строится из `POSTGRES_*` |
 | Утечка секретов | `.env` содержит `SECRET_KEY`, `ADMIN_PASSWORD`, пароль БД | `.env` уже в `.gitignore` и в `.dockerignore`; не коммитить, в продакшене — секрет‑менеджер |
 | CORS / origin | При неверном `ALLOWED_ORIGINS` фронтенд получит ошибки | Схема с nginx‑прокси делает запросы same‑origin; `ALLOWED_ORIGINS` всё равно нужно указать на публичный URL |
 | Кодировка `requirements.txt` | UTF‑16 LE с BOM может сломать сторонний тулинг | Пересохранить в UTF‑8 (желательно) |

@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { loadEnv, parseEnv } from "../scripts/load-env.mjs";
+import { resolveDatabaseUrl } from "../scripts/dev.mjs";
 
 test("parseEnv handles comments, quotes and export prefixes", () => {
   const parsed = parseEnv(
@@ -42,4 +43,16 @@ test("loadEnv applies missing keys but preserves existing ones", () => {
 test("loadEnv returns empty object when no .env file exists", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kral-env-"));
   assert.deepEqual(loadEnv(dir, {}), {});
+});
+
+test("resolveDatabaseUrl requires explicit configuration", () => {
+  assert.throws(
+    () => resolveDatabaseUrl({}),
+    /DATABASE_URL is not set/
+  );
+});
+
+test("resolveDatabaseUrl returns explicit configuration", () => {
+  const databaseUrl = "postgresql://postgres:pw@localhost:5432/EpohaTruda";
+  assert.equal(resolveDatabaseUrl({ DATABASE_URL: databaseUrl }), databaseUrl);
 });
